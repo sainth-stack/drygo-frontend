@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ContactDialogProps {
   trigger?: React.ReactNode;
@@ -29,6 +28,7 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
     address: "",
     message: "",
   });
+
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,25 +36,47 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-contact-email', {
-        body: formData,
+      const response = await fetch("http://localhost:4000/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          contactNumber: formData.phone, // 👈 REQUIRED BY BACKEND
+          email: formData.email,
+          address: formData.address,
+          message: formData.message,
+        }),
       });
 
-      if (error) {
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send message");
       }
 
       toast({
         title: "Message sent!",
         description: "Thank you for contacting us. We'll get back to you soon.",
       });
-      setFormData({ name: "", phone: "", email: "", address: "", message: "" });
+
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+        address: "",
+        message: "",
+      });
+
       onOpenChange?.(false);
     } catch (error: any) {
-      console.error("Error sending contact email:", error);
+      console.error("Contact API error:", error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again or email us directly at info@drygo.in",
+        description:
+          error.message ||
+          "Failed to send message. Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -62,7 +84,9 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -71,11 +95,14 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Contact Us</DialogTitle>
+          <DialogTitle className="font-display text-xl">
+            Contact Us
+          </DialogTitle>
           <DialogDescription>
             Fill in your details and we'll get back to you at info@drygo.in
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
@@ -88,6 +115,7 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="phone">Contact Number *</Label>
             <Input
@@ -96,10 +124,11 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
               type="tel"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="+91 98XXX XXXXX"
+              placeholder="9876543210"
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email *</Label>
             <Input
@@ -112,6 +141,7 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
             <Textarea
@@ -123,6 +153,7 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
               rows={2}
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="message">Message</Label>
             <Textarea
@@ -134,6 +165,7 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
               rows={3}
             />
           </div>
+
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Sending..." : "Submit"}
           </Button>
