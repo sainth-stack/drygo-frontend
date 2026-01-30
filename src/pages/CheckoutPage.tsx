@@ -47,6 +47,13 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    description?: string;
+    discountType: string;
+    discountValue: number;
+  } | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -76,61 +83,97 @@ const CheckoutPage = () => {
   };
 
   const applyCoupon = async () => {
-    if (!couponCode.trim()) return;
+    if (!couponCode.trim()) {
+      toast({
+        title: "Coupon Code Required",
+        description: "Please enter a coupon code.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setApplyingCoupon(true);
     
     try {
-      const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', couponCode.toUpperCase())
-        .eq('is_active', true)
-        .maybeSingle();
+      // Get authentication token if available
+      const token = localStorage.getItem('LoginToken');
       
-      if (error || !data) {
+      const response = await fetch(`${API_BASE_URL}/coupon/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'token': token.trim() }),
+        },
+        body: JSON.stringify({
+          code: couponCode.toUpperCase().trim(),
+          cartTotal: subtotal,
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to validate coupon');
+      }
+
+      if (!responseData.success) {
         toast({
           title: "Invalid Coupon",
-          description: "This coupon code is not valid.",
+          description: responseData.message || "This coupon code is not valid.",
           variant: "destructive",
         });
+        setDiscount(0);
+        setAppliedCoupon(null);
         return;
       }
-      
-      if (data.min_order_value && subtotal < Number(data.min_order_value)) {
-        toast({
-          title: "Minimum Order Not Met",
-          description: `Minimum order value is ₹${data.min_order_value}`,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        toast({
-          title: "Coupon Expired",
-          description: "This coupon has expired.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
+
+      // Calculate discount from response data
+      const couponData = responseData.data;
       let discountAmount = 0;
-      if (data.discount_type === 'percentage') {
-        discountAmount = subtotal * (Number(data.discount_value) / 100);
-        if (data.max_discount) {
-          discountAmount = Math.min(discountAmount, Number(data.max_discount));
+      
+      if (couponData.discountType === 'percentage') {
+        discountAmount = subtotal * (couponData.discountValue / 100);
+        if (couponData.maxDiscount) {
+          discountAmount = Math.min(discountAmount, couponData.maxDiscount);
         }
       } else {
-        discountAmount = Number(data.discount_value);
+        discountAmount = couponData.discountValue;
       }
-      
+
       setDiscount(discountAmount);
+      setAppliedCoupon({
+        code: couponData.code,
+        description: couponData.description,
+        discountType: couponData.discountType,
+        discountValue: couponData.discountValue,
+      });
+      
       toast({
         title: "Coupon Applied!",
-        description: `You saved ₹${discountAmount.toFixed(2)}`,
+        description: responseData.message || `You saved ₹${discountAmount.toFixed(2)}`,
       });
     } catch (error) {
       console.error('Error applying coupon:', error);
+      toast({
+        title: "Coupon Error",
+        description: error instanceof Error ? error.message : "Failed to apply coupon. Please try again.",
+        variant: "destructive",
+      });
+      setDiscount(0);
+      setAppliedCoupon(null);
+    } finally {
+      setApplyingCoupon(false);
     }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode('');
+    setDiscount(0);
+    setAppliedCoupon(null);
+    toast({
+      title: "Coupon Removed",
+      description: "Coupon has been removed from your order.",
+    });
   };
 
   const finalTotal = total - discount;
@@ -196,7 +239,7 @@ const CheckoutPage = () => {
           customerPhone: formData.phone,
           shippingAddress,
           cartItems,
-          couponCode: couponCode || null,
+          couponCode: appliedCoupon?.code || null,
           paymentMethod,
         }),
       });
@@ -516,17 +559,63 @@ const CheckoutPage = () => {
                     <Separator />
                     
                     {/* Coupon */}
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Coupon code"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button type="button" variant="outline" onClick={applyCoupon}>
-                        Apply
-                      </Button>
-                    </div>
+                    {!appliedCoupon ? (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Coupon code"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                applyCoupon();
+                              }
+                            }}
+                            className="flex-1"
+                            disabled={applyingCoupon}
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={applyCoupon}
+                            disabled={applyingCoupon || !couponCode.trim()}
+                          >
+                            {applyingCoupon ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Applying...
+                              </>
+                            ) : (
+                              'Apply'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-leaf/10 border border-leaf/20 rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-leaf">{appliedCoupon.code}</span>
+                              <span className="text-xs text-muted-foreground">Applied</span>
+                            </div>
+                            {appliedCoupon.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{appliedCoupon.description}</p>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={removeCoupon}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     
                     <Separator />
                     

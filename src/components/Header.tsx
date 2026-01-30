@@ -1,17 +1,37 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.jpg";
 import { useState } from "react";
 import ContactDialog from "@/components/ContactDialog";
 import CartIcon from "@/components/CartIcon";
-import { Navigate } from "react-router-dom";
+import OrdersSheet from "@/components/OrdersSheet";
+import { useCart } from "@/contexts/CartContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
+const CART_STORAGE_KEY = "drygo-cart";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
-  const navigate = useNavigate()
+  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const navigate = useNavigate();
+  const { clearCart } = useCart();
+  const isLoggedIn = !!localStorage.getItem("LoginToken");
+
+  const handleLogout = async () => {
+    localStorage.removeItem("LoginToken");
+    localStorage.removeItem("UserID");
+    localStorage.removeItem("UserEmail");
+    localStorage.removeItem(CART_STORAGE_KEY);
+    await clearCart();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/50">
@@ -81,22 +101,29 @@ const Header = () => {
           >
             {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-                    <Button 
-          variant="leaf"
-          size="sm"
-          onClick={()=>navigate("/Login")}
-
-          >
-            Login
-          </Button>
-          <Button 
-          variant="default"
-          size="sm"
-          onClick={()=>navigate("/Register")}
-
-          >
-           Register
-          </Button>
+          {isLoggedIn ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Profile menu">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsOrdersOpen(true)}>
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Orders
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="leaf" size="sm" onClick={() => navigate("/Login")}>
+              Login
+            </Button>
+          )}
         </div>
       </div>
 
@@ -160,6 +187,7 @@ const Header = () => {
       )}
 
       <ContactDialog open={isContactOpen} onOpenChange={setIsContactOpen} />
+      <OrdersSheet open={isOrdersOpen} onOpenChange={setIsOrdersOpen} />
     </header>
   );
 };

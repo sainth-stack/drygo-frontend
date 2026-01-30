@@ -93,7 +93,7 @@ const SpinachPowderPage = () => {
                 </p>
 
                 <div className="flex items-center gap-4">
-                  <span className="font-display text-3xl font-bold text-primary">{product.price ||""}</span>
+                  <span className="font-display text-3xl font-bold text-primary">{`₹${product.price}`}</span>
                   <span className="text-sm text-muted-foreground">
                      {product.weight || "150"}g pouch • No preservatives • No added colour
                   </span>
@@ -116,8 +116,8 @@ const SpinachPowderPage = () => {
 
               <div className="relative animate-fade-in" style={{ animationDelay: "0.2s" }}>
                 <img
-                  src={spinachPowder}
-                  alt="DRYGO Spinach Powder"
+                  src={product.image || spinachPowder}
+                  alt={product.name || "Spinach Powder"}
                   className="w-full max-w-lg mx-auto drop-shadow-2xl animate-float"
                 />
                 <p className="text-center text-xs text-muted-foreground mt-4">

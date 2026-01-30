@@ -4,6 +4,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { Navigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+
 
 const Login = ({ showRegisterHandler }) => {
   const navigate = useNavigate();
@@ -12,45 +14,63 @@ const Login = ({ showRegisterHandler }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+
+const { toast } = useToast();
 
   const togglePassword = () => setShowPassword(!showPassword);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      const response = await fetch("http://localhost:4000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+  try {
+    const response = await fetch("http://localhost:4000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      localStorage.setItem("LoginToken", data.token);
+      localStorage.setItem("UserID", data.user.id);
+      const userEmail = data.user?.email || email?.trim()?.toLowerCase();
+      if (userEmail) {
+        localStorage.setItem("UserEmail", userEmail);
+      }
+
+      toast({
+        title: "Login successful 🎉",
+        description: "Welcome back! Redirecting to dashboard...",
+        duration: 3000,
       });
 
-      const data = await response.json();
-      console.log(data)
+      setEmail("");
+      setPassword("");
 
-      if (response.ok) {
-        localStorage.setItem("LoginToken", data.token);
-         localStorage.setItem("UserID", data.user.id);
-
-        // Optional decode
-        // const decoded = jwtDecode(data.token);
-        // console.log(decoded);
-
-        setEmail("");
-        setPassword("");
+      // small delay so user sees toast
+      setTimeout(() => {
         navigate("/");
-      } else {
-        setError(data.message || "Login failed");
-      }
-    } catch (err) {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      }, 800);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: data.message || "Invalid email or password",
+      });
     }
-  };
+  } catch (err) {
+    toast({
+      variant: "destructive",
+      title: "Network error",
+      description: "Please check your internet connection",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -65,12 +85,7 @@ const Login = ({ showRegisterHandler }) => {
 
         {/* Form */}
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded w-[90%] mx-auto">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
-
+          
           {/* Email */}
           <div className="space-y-2 flex flex-col items-center">
             <label className="block text-sm font-medium text-gray-700">
@@ -165,7 +180,7 @@ const Login = ({ showRegisterHandler }) => {
         </form>
 
         {/* Footer */}
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center" >
           <p className="text-gray-600">
             Don’t have an account?{" "}
             <button
@@ -174,7 +189,7 @@ const Login = ({ showRegisterHandler }) => {
               style={{color:"blue"}}
               onClick={()=>navigate("/Register")}
             >
-              Create one
+              Create New Account
             </button>
           </p>
         </div>

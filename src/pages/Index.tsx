@@ -70,9 +70,10 @@ console.log(products[0]?.name);
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <Button asChild variant="hero" size="lg">
-                    <Link to="/products/spinach">
+                    {/* <Link to="/products/spinach">
                       Shop Now <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
+                    </Link> */}
+                    <a href="#products">Shop Now</a>
                   </Button>
                   <Button asChild variant="hero-outline" size="lg">
                     <a href="#products">View Products</a>
@@ -142,8 +143,8 @@ console.log(products[0]?.name);
         key={product._id}
         name={product.name}
         description={product.description}
-        price={product.price}
-        image= {spinachPowder} // {`http://localhost:4000${product.image}`}
+        price={`₹${product.price}`}
+        image={product.image}  
         link={product.name}
         badge={product.badge}
         badgeVariant={product.badgeVariant}
@@ -221,9 +222,11 @@ console.log(products[0]?.name);
               Start with our best-selling Spinach Powder and discover how easy nutrition can be.
             </p>
             <Button asChild variant="hero" size="xl">
-              <Link to="/products/spinach">
+              {/* <Link to="/products/spinach">
                 Shop Spinach Powder <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
+              </Link> */}
+
+               <a href="#products">Shop Spinach Powder <ArrowRight className="ml-2 h-5 w-5" /></a>
             </Button>
           </div>
         </Section>

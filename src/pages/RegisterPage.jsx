@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { Navigate, useNavigate } from 'react-router-dom';
+import { useToast } from "@/hooks/use-toast";
+
 
 
 const Register = () => {
@@ -9,48 +11,61 @@ const Register = () => {
   const [username, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const { toast } = useToast();
+
+ 
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate()
 
   const togglePassword = () => setShowPassword(!showPassword);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    
-    try {
-      const response = await fetch("http://localhost:4000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username, email, password })
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const response = await fetch("http://localhost:4000/api/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, email, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      toast({
+        title: "Account created 🎉",
+        description: "You can now log in with your credentials",
+         duration: 3000,
       });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        console.log(data);
-        setEmail("");
-        setUserName("");
-        setPassword("");
-        alert("Registered successfully!");
-       
-        navigate('/Login')
-      } else {
-        setError(data.message || "Registration failed");
-        alert(data.message || "Registration failed");
-      }
-    } catch (error) {
-      console.error("Register failed ", error);
-      setError("Network error. Please try again.");
-      alert("Registration failed");
-    } finally {
-      setLoading(false);
+
+      setEmail("");
+      setUserName("");
+      setPassword("");
+
+      setTimeout(() => {
+        navigate("/Login");
+      }, 800);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Registration failed",
+        description: data.message || "Please try again",
+      });
     }
-  };
+  } catch (err) {
+    toast({
+      variant: "destructive",
+      title: "Network error",
+      description: "Please check your internet connection",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
 
@@ -63,11 +78,7 @@ const Register = () => {
         </div>
 
         <form  className="space-y-6 w-full mx-auto" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded w-[90%] mx-auto">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
+         
 
           <div className="space-y-2 flex flex-col items-center">
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
