@@ -7,7 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import CartSheet from "@/components/CartSheet";
 import Index from "./pages/Index";
 import SpinachPowderPage from "./pages/SpinachPowderPage";
-import Register from "./pages/Registerpage";
+import Register from "./pages/RegisterPage";
 import MoringaPowderPage from "./pages/MoringaPowderPage";
 import CarrotPowderPage from "./pages/CarrotPowderPage";
 import BeetrootPowderPage from "./pages/BeetrootPowderPage";
