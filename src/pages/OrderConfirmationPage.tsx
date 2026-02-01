@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle, Package, Truck, Home, Phone, Loader2, Mail } from "lucide-react";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+import axios from "axios";
+import { BASE_URL } from "@/const";
 
 interface Order {
   orderId: string;
@@ -83,26 +83,14 @@ const OrderConfirmationPage = () => {
     
     try {
       // Use MongoDB API to fetch order with email verification
-      const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}`, {
-        method: 'GET',
+      const response = await axios.get(`${BASE_URL}/orders/${orderNumber}`, {
         headers: {
           'Content-Type': 'application/json',
           'x-verify-email': email.trim().toLowerCase(), // Email verification header
         },
       });
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          setEmailError('No order found with this email. Please check and try again.');
-          setNeedsVerification(true);
-          setLoading(false);
-          return;
-        }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to fetch order');
-      }
-      
-      const responseData = await response.json();
+      const responseData = response.data;
       const orderResult = responseData.data || responseData;
       
       if (!orderResult) {
@@ -150,6 +138,11 @@ const OrderConfirmationPage = () => {
       setItems(mappedItems);
     } catch (error) {
       console.error('Error fetching order:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setEmailError('No order found with this email. Please check and try again.');
+        setNeedsVerification(true);
+        return;
+      }
       setEmailError('Unable to verify your order. Please try again.');
       setNeedsVerification(true);
     } finally {

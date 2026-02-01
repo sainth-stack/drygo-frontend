@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Leaf, Shield, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { BASE_URL } from "@/const";
 
 
 import spinachPowder from "@/assets/spinach-powder.jpg";
@@ -22,8 +24,8 @@ const [error, setError] = useState("");
 useEffect(() => {
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:4000/api/products");
-      const json = await res.json();
+      const res = await axios.get(`${BASE_URL}/products`);
+      const json = res.data;
       
 
       if (json.success) {

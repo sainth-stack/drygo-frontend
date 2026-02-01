@@ -5,8 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package, Truck, Home, Loader2, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+import axios from "axios";
+import { BASE_URL } from "@/const";
 
 interface Order {
   orderId: string;
@@ -65,22 +65,14 @@ const OrdersSheet = ({ open, onOpenChange }: OrdersSheetProps) => {
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/orders/user/${userId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            token: token.trim(),
-          },
-        }
-      );
+      const response = await axios.get(`${BASE_URL}/orders/user/${userId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          token: token.trim(),
+        },
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to fetch orders");
-      }
-
-      const responseData = await response.json();
+      const responseData = response.data;
       const ordersData = responseData.data ?? responseData;
 
       if (Array.isArray(ordersData)) {

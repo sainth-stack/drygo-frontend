@@ -1,10 +1,12 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { BASE_URL } from "@/const";
 
 
 const Login = ({ showRegisterHandler }) => {
@@ -24,15 +26,13 @@ const { toast } = useToast();
   setLoading(true);
 
   try {
-    const response = await fetch("http://localhost:4000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+    const response = await axios.post(`${BASE_URL}/auth/login`, {
+      email,
+      password,
     });
+    const data = response.data;
 
-    const data = await response.json();
-
-    if (response.ok) {
+    if (response.status >= 200 && response.status < 300) {
       localStorage.setItem("LoginToken", data.token);
       localStorage.setItem("UserID", data.user.id);
       const userEmail = data.user?.email || email?.trim()?.toLowerCase();
@@ -53,18 +53,16 @@ const { toast } = useToast();
       setTimeout(() => {
         navigate("/");
       }, 800);
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: data.message || "Invalid email or password",
-      });
     }
   } catch (err) {
+    const message =
+      axios.isAxiosError(err)
+        ? err.response?.data?.message || "Invalid email or password"
+        : "Invalid email or password";
     toast({
       variant: "destructive",
-      title: "Network error",
-      description: "Please check your internet connection",
+      title: "Login failed",
+      description: message,
     });
   } finally {
     setLoading(false);
@@ -73,80 +71,74 @@ const { toast } = useToast();
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome Back
-          </h2>
-          <p className="text-gray-600">Sign in to your account</p>
-        </div>
-
-        {/* Form */}
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          
-          {/* Email */}
-          <div className="space-y-2 flex flex-col items-center">
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-[90%] px-4 py-3 border border-gray-300 rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                outline-none transition duration-200"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream via-cream-dark to-cream py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-white/90 shadow-card backdrop-blur">
+        <div className="px-8 py-12 sm:px-12">
+          <div className="text-center mb-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Drygo Portal
+            </p>
+            <h2 className="mt-4 text-[28px] font-semibold text-foreground">
+              Welcome back
+            </h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Sign in to manage orders, inventory, and customers.
+            </p>
           </div>
 
-          {/* Password */}
-          <div className="space-y-2 flex flex-col items-center">
-            <label className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-
-            <div className="relative w-[90%]">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Email
+              </label>
               <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg
-                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                  outline-none transition duration-200 pr-12"
+                className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-
-              <Button
-                asChild
-                variant="icon"
-                size="icon"
-                type="button"
-                onClick={togglePassword}
-                className="absolute right-3 top-[15px] text-gray-400 hover:text-gray-600"
-                style={{marginTop:"15px"}}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </Button>
             </div>
-          </div>
 
-          {/* Submit */}
-          <div className="flex justify-center">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Password
+              </label>
+
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 pr-12"
+                />
+
+                <Button
+                  asChild
+                  variant="icon"
+                  size="icon"
+                  type="button"
+                  onClick={togglePassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
             <Button
               type="submit"
               variant="default"
               size="lg"
               disabled={loading}
-              className="w-[90%]"
+              className="w-full rounded-xl mt-8"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -176,28 +168,21 @@ const { toast } = useToast();
                 "Login"
               )}
             </Button>
-          </div>
-        </form>
+          </form>
 
-        {/* Footer */}
-        <div className="mt-6 text-center" >
-          <p className="text-gray-600">
+          <div className="mt-4 text-center text-sm text-muted-foreground">
             Don’t have an account?{" "}
             <button
-             
-              className="font-medium text-blue-600 hover:text-blue-500"
-              style={{color:"blue"}}
-              onClick={()=>navigate("/Register")}
+              className="font-semibold text-primary hover:text-primary/80"
+              onClick={() => navigate("/Register")}
             >
               Create New Account
             </button>
-          </p>
+          </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            By signing in, you agree to our Terms of Service and Privacy Policy
-          </p>
+        <div className="border-t border-border px-8 py-6 text-center text-xs text-muted-foreground sm:px-12">
+          By signing in, you agree to our Terms of Service and Privacy Policy.
         </div>
       </div>
     </div>

@@ -15,7 +15,9 @@ import spinachPowder from "@/assets/spinach-powder.jpg";
 import moringaPowder from "@/assets/moringa-powder.jpg";
 import carrotPowder from "@/assets/carrot-powder.jpg";
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { BASE_URL } from "@/const";
 const spinachNutrition = [
   { nutrient: "Energy (kcal)", per100g: "156.56", per5g: "7.83", rda: "0.39" },
   { nutrient: "Fat (g)", per100g: "4.35", per5g: "0.22", rda: "0.32" },
@@ -42,16 +44,14 @@ const SpinachPowderPage = () => {
    useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:4000/api/products/${productId}`
-        );
-        const json = await res.json();
+        const res = await axios.get(`${BASE_URL}/products/${productId}`);
+        const json = res.data;
         setProduct(json.data);
 
-        const nutRes = await fetch(
-          `http://localhost:4000/api/products/${productId}/nutrition`
+        const nutRes = await axios.get(
+          `${BASE_URL}/products/${productId}/nutrition`
         );
-        const nutJson = await nutRes.json();
+        const nutJson = nutRes.data;
         setNutrition(nutJson.data);
       } catch (err) {
         console.error(err);

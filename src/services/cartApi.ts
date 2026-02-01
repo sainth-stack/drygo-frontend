@@ -1,6 +1,7 @@
+import axios from "axios";
+import { BASE_URL } from "@/const";
+
 // Cart API Service
-// Base URL can be configured via environment variable VITE_API_BASE_URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
 export interface CartItem {
   id: string;
@@ -82,27 +83,20 @@ export const getCart = async (): Promise<CartResponse> => {
     }
 
     console.log('Cart API: Fetching cart with token');
-    const response = await fetch(`${API_BASE_URL}/cart`, {
-      method: 'GET',
+    const response = await axios.get(`${BASE_URL}/cart`, {
       headers: getHeaders(),
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Unauthorized - keep token and UserID, let application handle the error
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Unauthorized. Please check your authentication.');
-      }
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Failed to fetch cart: ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
+    const responseData = response.data;
     // Backend returns { success: true, data: {...} }
     // Return the data property if it exists, otherwise return the whole response
     return responseData.data || responseData;
   } catch (error) {
-    console.error('Error fetching cart:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      console.error('Error fetching cart (unauthorized):', error);
+    } else {
+      console.error('Error fetching cart:', error);
+    }
     // Return empty cart on error
     return {
       items: [],
@@ -158,7 +152,7 @@ export const addItemToCart = async (
     };
 
     console.log('Cart API: Making request to /cart/add', {
-      url: `${API_BASE_URL}/cart/add`,
+      url: `${BASE_URL}/cart/add`,
       headers,
       hasTokenHeader: !!headers.token,
       body: requestBody,
@@ -173,50 +167,33 @@ export const addItemToCart = async (
       allKeys: Object.keys(headers)
     });
 
-    const response = await fetch(`${API_BASE_URL}/cart/add`, {
-      method: 'POST',
-      headers: headers, // Use plain object - fetch API handles this correctly
-      body: JSON.stringify(requestBody),
+    const response = await axios.post(`${BASE_URL}/cart/add`, requestBody, {
+      headers: headers,
     });
 
     console.log('Cart API: Response status', response.status, response.statusText);
 
-    if (!response.ok) {
-      // Try to get error message from response
-      let errorMessage = `Failed to add item to cart: ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        console.error('Cart API: Error response data:', errorData);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-        
-        // Log detailed error information
-        if (response.status === 401) {
-          console.error('Cart API: 401 Unauthorized - Token validation failed', {
-            errorMessage,
-            tokenSent: !!headers.token,
-            tokenPreview: headers.token ? headers.token.substring(0, 20) + '...' : 'none'
-          });
-        }
-      } catch (e) {
-        const errorText = await response.text().catch(() => '');
-        console.error('Cart API: Error response text:', errorText);
-        errorMessage = errorText || errorMessage;
-      }
-      
-      if (response.status === 401) {
-        // Unauthorized - keep token and UserID, let application handle the error
-        throw new Error(errorMessage || 'Unauthorized. Please check your authentication. Token may be expired or invalid.');
-      }
-      throw new Error(errorMessage);
-    }
-
-    const responseData = await response.json();
+    const responseData = response.data;
     // Backend returns { success: true, data: {...} }
     // Return the data property if it exists, otherwise return the whole response
     return responseData.data || responseData;
   } catch (error) {
+    let errorMessage = 'Failed to add item to cart';
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorData = error.response?.data as { message?: string; error?: string } | undefined;
+      errorMessage = errorData?.message || errorData?.error || errorMessage;
+      if (status === 401) {
+        console.error('Cart API: 401 Unauthorized - Token validation failed', {
+          errorMessage,
+          tokenSent: !!getHeaders().token,
+          tokenPreview: getHeaders().token ? getHeaders().token.substring(0, 20) + '...' : 'none'
+        });
+        throw new Error(errorMessage || 'Unauthorized. Please check your authentication. Token may be expired or invalid.');
+      }
+    }
     console.error('Error adding item to cart:', error);
-    throw error;
+    throw new Error(errorMessage);
   }
 };
 
@@ -231,29 +208,26 @@ export const updateCartItemQuantity = async (
       throw new Error('Please login to update cart');
     }
 
-    const response = await fetch(`${API_BASE_URL}/cart/update`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify({ productId, quantity }),
-    });
+    const response = await axios.put(
+      `${BASE_URL}/cart/update`,
+      { productId, quantity },
+      { headers: getHeaders() }
+    );
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Unauthorized - keep token and UserID, let application handle the error
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Unauthorized. Please check your authentication.');
-      }
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Failed to update cart item: ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
+    const responseData = response.data;
     // Backend returns { success: true, data: {...} }
     // Return the data property if it exists, otherwise return the whole response
     return responseData.data || responseData;
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const errorData = error.response?.data as { message?: string } | undefined;
+      throw new Error(errorData?.message || 'Unauthorized. Please check your authentication.');
+    }
+    const errorData = axios.isAxiosError(error)
+      ? (error.response?.data as { message?: string } | undefined)
+      : undefined;
     console.error('Error updating cart item:', error);
-    throw error;
+    throw new Error(errorData?.message || 'Failed to update cart item.');
   }
 };
 
@@ -265,28 +239,24 @@ export const removeCartItem = async (productId: string): Promise<CartResponse> =
       throw new Error('Please login to remove items from cart');
     }
 
-    const response = await fetch(`${API_BASE_URL}/cart/item/${productId}`, {
-      method: 'DELETE',
+    const response = await axios.delete(`${BASE_URL}/cart/item/${productId}`, {
       headers: getHeaders(),
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Unauthorized - keep token and UserID, let application handle the error
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Unauthorized. Please check your authentication.');
-      }
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Failed to remove cart item: ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
+    const responseData = response.data;
     // Backend returns { success: true, data: {...} }
     // Return the data property if it exists, otherwise return the whole response
     return responseData.data || responseData;
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const errorData = error.response?.data as { message?: string } | undefined;
+      throw new Error(errorData?.message || 'Unauthorized. Please check your authentication.');
+    }
+    const errorData = axios.isAxiosError(error)
+      ? (error.response?.data as { message?: string } | undefined)
+      : undefined;
     console.error('Error removing cart item:', error);
-    throw error;
+    throw new Error(errorData?.message || 'Failed to remove cart item.');
   }
 };
 
@@ -298,27 +268,23 @@ export const clearCart = async (): Promise<CartResponse> => {
       throw new Error('Please login to clear cart');
     }
 
-    const response = await fetch(`${API_BASE_URL}/cart/clear`, {
-      method: 'DELETE',
+    const response = await axios.delete(`${BASE_URL}/cart/clear`, {
       headers: getHeaders(),
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        // Unauthorized - keep token and UserID, let application handle the error
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Unauthorized. Please check your authentication.');
-      }
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Failed to clear cart: ${response.statusText}`);
-    }
-
-    const responseData = await response.json();
+    const responseData = response.data;
     // Backend returns { success: true, data: {...} }
     // Return the data property if it exists, otherwise return the whole response
     return responseData.data || responseData;
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const errorData = error.response?.data as { message?: string } | undefined;
+      throw new Error(errorData?.message || 'Unauthorized. Please check your authentication.');
+    }
+    const errorData = axios.isAxiosError(error)
+      ? (error.response?.data as { message?: string } | undefined)
+      : undefined;
     console.error('Error clearing cart:', error);
-    throw error;
+    throw new Error(errorData?.message || 'Failed to clear cart.');
   }
 };

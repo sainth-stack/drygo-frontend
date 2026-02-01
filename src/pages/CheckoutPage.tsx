@@ -11,7 +11,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+import axios from "axios";
+import { BASE_URL } from "@/const";
 import { ArrowLeft, CreditCard, Truck, Loader2, Shield, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { z } from "zod";
@@ -98,23 +99,21 @@ const CheckoutPage = () => {
       // Get authentication token if available
       const token = localStorage.getItem('LoginToken');
       
-      const response = await fetch(`${API_BASE_URL}/coupon/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'token': token.trim() }),
-        },
-        body: JSON.stringify({
+      const response = await axios.post(
+        `${BASE_URL}/coupon/validate`,
+        {
           code: couponCode.toUpperCase().trim(),
           cartTotal: subtotal,
-        }),
-      });
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { token: token.trim() }),
+          },
+        }
+      );
 
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to validate coupon');
-      }
+      const responseData = response.data;
 
       if (!responseData.success) {
         toast({
@@ -227,13 +226,9 @@ const CheckoutPage = () => {
       };
 
       // Create order using MongoDB API
-      const response = await fetch(`${API_BASE_URL}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'token': token.trim(),
-        },
-        body: JSON.stringify({
+      const response = await axios.post(
+        `${BASE_URL}/orders`,
+        {
           customerName: formData.name,
           customerEmail: formData.email,
           customerPhone: formData.phone,
@@ -241,15 +236,16 @@ const CheckoutPage = () => {
           cartItems,
           couponCode: appliedCoupon?.code || null,
           paymentMethod,
-        }),
-      });
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            token: token.trim(),
+          },
+        }
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to create order: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
+      const responseData = response.data;
       const orderData = responseData.data || responseData;
       
       if (!orderData) {

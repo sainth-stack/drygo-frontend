@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
+import { BASE_URL } from "@/const";
 
 interface ContactDialogProps {
   trigger?: React.ReactNode;
@@ -36,25 +38,13 @@ const ContactDialog = ({ trigger, open, onOpenChange }: ContactDialogProps) => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://localhost:4000/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          contactNumber: formData.phone, // 👈 REQUIRED BY BACKEND
-          email: formData.email,
-          address: formData.address,
-          message: formData.message,
-        }),
+      await axios.post(`${BASE_URL}/contact`, {
+        name: formData.name,
+        contactNumber: formData.phone, // 👈 REQUIRED BY BACKEND
+        email: formData.email,
+        address: formData.address,
+        message: formData.message,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to send message");
-      }
 
       toast({
         title: "Message sent!",
